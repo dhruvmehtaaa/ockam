@@ -1,14 +1,14 @@
 use clap::Args;
 use ockam::Context;
 use ockam_api::cloud::space::Spaces;
-use rand::prelude::random;
 
-use crate::util::api::{self};
+use crate::output::Output;
+use crate::util::api::{self, CloudOpts};
 use crate::util::{is_enrolled_guard, node_rpc};
 use crate::{docs, CommandGlobalOpts};
 use colorful::Colorful;
+use ockam_api::cli_state::random_name;
 use ockam_api::cli_state::{SpaceConfig, StateDirTrait};
-
 use ockam_api::nodes::InMemoryNode;
 
 const LONG_ABOUT: &str = include_str!("./static/create/long_about.txt");
@@ -28,6 +28,9 @@ pub struct CreateCommand {
     /// Administrators for this space
     #[arg(display_order = 1100, last = true)]
     pub admins: Vec<String>,
+
+    #[command(flatten)]
+    pub cloud_opts: CloudOpts,
 }
 
 impl CreateCommand {
@@ -61,7 +64,11 @@ async fn run_impl(
     let controller = node.create_controller().await?;
     let space = controller.create_space(ctx, cmd.name, cmd.admins).await?;
 
-    opts.println(&space)?;
+    opts.terminal
+        .stdout()
+        .plain(space.output()?)
+        .json(serde_json::json!(&space))
+        .write_line()?;
     opts.state
         .spaces
         .overwrite(&space.name, SpaceConfig::from(&space))?;
